@@ -20,7 +20,7 @@ if ($gitStatus) {
 
 # Run tests
 Write-Host "Running tests..." -ForegroundColor Yellow
-go test ./tests
+go test ./tests/...
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Tests failed"
     exit 1
@@ -28,7 +28,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Build
 Write-Host "Building..." -ForegroundColor Yellow
-go build ./pkg/config233
+go build ./ioc233/...
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Build failed"
     exit 1
@@ -136,5 +136,5 @@ if ($LASTEXITCODE -eq 0 -and $githubRemote) {
 
 Write-Host ""
 Write-Host "Release $Version completed successfully!" -ForegroundColor Green
-Write-Host "The module will be available at: https://pkg.go.dev/github.com/neko233-com/config233-go@$Version"
+Write-Host "The module will be available at: https://pkg.go.dev/github.com/neko233-com/ioc233-go@$Version"
 Write-Host ""

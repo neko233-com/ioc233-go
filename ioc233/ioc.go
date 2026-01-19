@@ -34,7 +34,15 @@ type Container struct {
 var (
 	_instance *Container
 	_once     sync.Once
+	_testMode bool // 测试模式标志
 )
+
+// Reset 重置容器实例（仅用于测试）
+// 注意：此函数会清空所有已注册的对象，仅应在测试环境中使用
+func Reset() {
+	_instance = nil
+	_once = sync.Once{}
+}
 
 // Instance 获取全局 IOC 容器实例（单例）
 func Instance() *Container {

@@ -17,6 +17,28 @@
 go get github.com/neko233-com/ioc233-go
 ```
 
+## 项目结构
+
+项目采用类似 Java 的目录结构，将核心代码和测试代码分离：
+
+```
+ioc233-go/
+├── ioc233/          # 核心代码目录（类似 Java 的 src/）
+│   ├── ioc.go       # IOC 容器核心实现
+│   ├── iobject.go   # 生命周期接口
+│   ├── logger.go    # 日志实现
+│   └── field_creator.go  # 字段默认值提供器
+├── tests/           # 测试代码目录（类似 Java 的 test/）
+│   └── ioc_test.go  # 单元测试
+└── README.md        # 项目文档
+```
+
+导入时使用：
+
+```go
+import "github.com/neko233-com/ioc233-go/ioc233"
+```
+
 ## 快速开始
 
 ### 基本使用
@@ -25,7 +47,7 @@ go get github.com/neko233-com/ioc233-go
 package main
 
 import (
-    "github.com/neko233-com/ioc233-go"
+    "github.com/neko233-com/ioc233-go/ioc233"
 )
 
 // 定义服务接口
@@ -36,7 +58,7 @@ type UserService interface {
 // 实现服务
 type UserServiceImpl struct {
     // 自动注入其他依赖
-    Logger ioc233.Logger `autowire:"true"`
+    // 注意：这里只是示例，实际使用时需要根据你的需求定义依赖
 }
 
 func (s *UserServiceImpl) GetUser(id int) string {
@@ -216,33 +238,60 @@ func (s *MyService) OnInjectComplete() {
 
 ## 日志配置
 
-默认情况下，库使用静默日志（不输出任何内容）。你可以设置自定义日志：
+ioc233-go 使用 Go 标准库的 `log/slog` 作为日志入口。默认情况下使用 `slog.Default()`，你可以通过以下方式自定义：
+
+### 方式一：设置全局 slog 默认日志
 
 ```go
-// 使用标准输出日志（用于调试）
-ioc233.SetLogger(&ioc233.StdLogger{})
+import (
+    "log/slog"
+    "os"
+)
 
-// 或使用自定义日志实现
-type MyLogger struct{}
-
-func (l *MyLogger) Debug(format string, args ...any) {
-    // 实现 Debug 日志
-}
-
-func (l *MyLogger) Info(format string, args ...any) {
-    // 实现 Info 日志
-}
-
-func (l *MyLogger) Warn(format string, args ...any) {
-    // 实现 Warn 日志
-}
-
-func (l *MyLogger) Error(format string, args ...any) {
-    // 实现 Error 日志
-}
-
-ioc233.SetLogger(&MyLogger{})
+// 设置全局默认日志（影响所有使用 slog.Default() 的代码）
+logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+slog.SetDefault(logger)
 ```
+
+### 方式二：为 ioc233-go 单独设置日志
+
+```go
+import (
+    "log/slog"
+    "os"
+    "github.com/neko233-com/ioc233-go"
+)
+
+// 为 ioc233-go 创建专用的日志实例
+logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelInfo,
+}))
+ioc233.SetLogger(logger)
+```
+
+### 方式三：使用自定义 Handler
+
+```go
+import (
+    "log/slog"
+    "os"
+    "github.com/neko233-com/ioc233-go"
+)
+
+// 使用自定义 Handler（例如写入文件）
+file, _ := os.OpenFile("ioc.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+handler := slog.NewJSONHandler(file, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+})
+logger := slog.New(handler)
+ioc233.SetLogger(logger)
+```
+
+### 静默日志
+
+如果不设置日志，ioc233-go 会使用 `slog.Default()`，默认情况下不会输出任何内容（除非你通过 `slog.SetDefault()` 设置了全局日志）。
 
 ## 自动初始化字段
 

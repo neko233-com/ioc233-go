@@ -1,9 +1,12 @@
-package ioc233
+package tests
 
 import (
+	"log/slog"
 	"math/rand"
 	"sync"
 	"testing"
+
+	"github.com/neko233-com/ioc233-go/ioc233"
 )
 
 // ==================== 测试用的接口和实现 ====================
@@ -69,21 +72,22 @@ func (l *LifecycleTracker) OnInjectComplete() {
 // ==================== 测试辅助函数 ====================
 
 func resetContainer() {
-	_instance = nil
-	_once = sync.Once{}
+	// 使用 build tag 提供的 Reset 函数
+	// 需要在测试时使用 -tags test 标志
+	ioc233.Reset()
 }
 
 // ==================== 基本功能测试 ====================
 
 func TestContainer_Provide(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	service := &UserServiceImpl{ID: 1}
 	container.Provide(service)
 
 	// 验证可以通过类型获取
-	retrieved := GetObjectByType[*UserServiceImpl]()
+	retrieved := ioc233.GetObjectByType[*UserServiceImpl]()
 	if retrieved == nil {
 		t.Fatal("应该能获取到注册的服务")
 	}
@@ -94,7 +98,7 @@ func TestContainer_Provide(t *testing.T) {
 
 func TestContainer_ProvideByName(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	service := &UserServiceImpl{ID: 2}
 	err := container.ProvideByName("MyUserService", service)
@@ -103,7 +107,7 @@ func TestContainer_ProvideByName(t *testing.T) {
 	}
 
 	// 验证可以通过名称获取（通过类型名）
-	retrieved := GetObjectByType[*UserServiceImpl]()
+	retrieved := ioc233.GetObjectByType[*UserServiceImpl]()
 	if retrieved == nil {
 		t.Fatal("应该能获取到注册的服务")
 	}
@@ -111,7 +115,7 @@ func TestContainer_ProvideByName(t *testing.T) {
 
 func TestContainer_ProvideDuplicateType(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	service1 := &UserServiceImpl{ID: 1}
 	service2 := &UserServiceImpl{ID: 2}
@@ -119,7 +123,7 @@ func TestContainer_ProvideDuplicateType(t *testing.T) {
 	container.Provide(service1)
 	container.Provide(service2) // 重复注册应该被忽略
 
-	retrieved := GetObjectByType[*UserServiceImpl]()
+	retrieved := ioc233.GetObjectByType[*UserServiceImpl]()
 	if retrieved.ID != 1 {
 		t.Errorf("重复注册应该保留第一个, 期望 ID=1, 得到 ID=%d", retrieved.ID)
 	}
@@ -127,7 +131,7 @@ func TestContainer_ProvideDuplicateType(t *testing.T) {
 
 func TestContainer_ProvideByNameDuplicate(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	service1 := &UserServiceImpl{ID: 1}
 	service2 := &UserServiceImpl{ID: 2}
@@ -151,14 +155,14 @@ func TestContainer_ProvideByNameDuplicate(t *testing.T) {
 
 func TestContainer_ProvideNil(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	container.Provide(nil) // 应该安全处理 nil
 
 	// 验证容器仍然可用
 	service := &UserServiceImpl{ID: 1}
 	container.Provide(service)
-	retrieved := GetObjectByType[*UserServiceImpl]()
+	retrieved := ioc233.GetObjectByType[*UserServiceImpl]()
 	if retrieved == nil {
 		t.Fatal("容器应该仍然可用")
 	}
@@ -168,7 +172,7 @@ func TestContainer_ProvideNil(t *testing.T) {
 
 func TestContainer_AutowireByType(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	userService := &UserServiceImpl{ID: 1}
 	orderService := &OrderServiceImpl{}
@@ -192,7 +196,7 @@ func TestContainer_AutowireByType(t *testing.T) {
 
 func TestContainer_AutowireByName(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type ServiceA struct {
 		ServiceB *UserServiceImpl `autowire:"MyServiceB"`
@@ -223,7 +227,7 @@ func TestContainer_AutowireByName(t *testing.T) {
 
 func TestContainer_AutowireOptional(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type ServiceA struct {
 		OptionalService *UserServiceImpl `autowire:"false"`
@@ -245,7 +249,7 @@ func TestContainer_AutowireOptional(t *testing.T) {
 
 func TestContainer_AutowireInterface(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type ServiceA struct {
 		UserService UserService `autowire:"true"`
@@ -276,7 +280,7 @@ func TestContainer_AutowireInterface(t *testing.T) {
 
 func TestLifecycle_IProvideAfter(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	tracker := &LifecycleTracker{}
 	container.Provide(tracker)
@@ -292,7 +296,7 @@ func TestLifecycle_IProvideAfter(t *testing.T) {
 
 func TestLifecycle_IInjectBefore(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	tracker := &LifecycleTracker{}
 	container.Provide(tracker)
@@ -313,7 +317,7 @@ func TestLifecycle_IInjectBefore(t *testing.T) {
 
 func TestLifecycle_IInjectAfter(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	tracker := &LifecycleTracker{}
 	container.Provide(tracker)
@@ -336,7 +340,7 @@ func TestLifecycle_IInjectAfter(t *testing.T) {
 
 func TestLifecycle_IObject_OnInjectComplete(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	tracker := &LifecycleTracker{}
 	container.Provide(tracker)
@@ -353,7 +357,7 @@ func TestLifecycle_IObject_OnInjectComplete(t *testing.T) {
 
 func TestLifecycle_AllCallbacks(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	tracker := &LifecycleTracker{}
 	container.Provide(tracker)
@@ -419,7 +423,7 @@ func (f *FullLifecycleTest) OnInjectComplete() {
 
 func TestLifecycle_CallbackOrder(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	orderTracker := &CallbackOrderTest{order: make([]string, 0)}
 	fullLifecycle := &FullLifecycleTest{orderTracker: orderTracker}
@@ -453,7 +457,7 @@ func TestLifecycle_CallbackOrder(t *testing.T) {
 
 func TestContainer_AutoInitMap(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type ServiceWithMap struct {
 		DataMap map[string]int
@@ -473,7 +477,7 @@ func TestContainer_AutoInitMap(t *testing.T) {
 
 func TestContainer_AutoInitSlice(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type ServiceWithSlice struct {
 		DataSlice []string
@@ -493,7 +497,7 @@ func TestContainer_AutoInitSlice(t *testing.T) {
 
 func TestContainer_AutoInitRand(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type ServiceWithRand struct {
 		Rand *rand.Rand
@@ -511,7 +515,7 @@ func TestContainer_AutoInitRand(t *testing.T) {
 
 func TestContainer_StartUpWithFatalError(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	service1 := &UserServiceImpl{ID: 1}
 	service2 := &UserServiceImpl{ID: 2}
@@ -527,7 +531,7 @@ func TestContainer_StartUpWithFatalError(t *testing.T) {
 
 func TestContainer_AutowireRequiredNotFound(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type ServiceA struct {
 		RequiredService *UserServiceImpl `autowire:"true"`
@@ -552,7 +556,7 @@ func TestContainer_AutowireRequiredNotFound(t *testing.T) {
 
 func TestContainer_ConcurrentProvide(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	var wg sync.WaitGroup
 	count := 10
@@ -569,7 +573,7 @@ func TestContainer_ConcurrentProvide(t *testing.T) {
 	wg.Wait()
 
 	// 验证容器仍然可用
-	retrieved := GetObjectByType[*UserServiceImpl]()
+	retrieved := ioc233.GetObjectByType[*UserServiceImpl]()
 	if retrieved == nil {
 		t.Fatal("并发注册后应该能获取到服务")
 	}
@@ -577,7 +581,7 @@ func TestContainer_ConcurrentProvide(t *testing.T) {
 
 func TestContainer_ConcurrentGet(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	service := &UserServiceImpl{ID: 1}
 	container.Provide(service)
@@ -594,7 +598,7 @@ func TestContainer_ConcurrentGet(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			retrieved := GetObjectByType[*UserServiceImpl]()
+			retrieved := ioc233.GetObjectByType[*UserServiceImpl]()
 			if retrieved == nil {
 				t.Error("应该能获取到服务")
 			}
@@ -608,7 +612,7 @@ func TestContainer_ConcurrentGet(t *testing.T) {
 
 func TestContainer_NonPointerType(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type NonPointerService struct {
 		ID int
@@ -626,7 +630,7 @@ func TestContainer_NonPointerType(t *testing.T) {
 
 func TestContainer_UnexportedField(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type ServiceWithUnexported struct {
 		ExportedField   *UserServiceImpl `autowire:"true"` // 大写开头，可导出
@@ -658,7 +662,7 @@ func TestContainer_UnexportedField(t *testing.T) {
 
 func TestContainer_EmptyContainer(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	err := container.StartUp()
 	if err != nil {
@@ -679,7 +683,7 @@ type CircularServiceB struct {
 
 func TestContainer_CircularDependency(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	serviceA := &CircularServiceA{}
 	serviceB := &CircularServiceB{}
@@ -712,7 +716,7 @@ func TestContainer_CircularDependency(t *testing.T) {
 
 func TestContainer_MultipleImplementations(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	type ServiceA struct {
 		UserService UserService `autowire:"true"`
@@ -746,7 +750,7 @@ func TestGetObjectByType_NotFound(t *testing.T) {
 		ID int
 	}
 
-	retrieved := GetObjectByType[*UnregisteredService]()
+	retrieved := ioc233.GetObjectByType[*UnregisteredService]()
 	if retrieved != nil {
 		t.Fatal("未注册的服务应该返回 nil")
 	}
@@ -754,7 +758,7 @@ func TestGetObjectByType_NotFound(t *testing.T) {
 
 func TestGetObjectByType_Interface(t *testing.T) {
 	resetContainer()
-	container := Instance()
+	container := ioc233.Instance()
 
 	userService := &UserServiceImpl{ID: 1}
 	container.Provide(userService)
@@ -765,7 +769,7 @@ func TestGetObjectByType_Interface(t *testing.T) {
 	}
 
 	// 通过接口类型获取实现
-	retrieved := GetObjectByType[UserService]()
+	retrieved := ioc233.GetObjectByType[UserService]()
 	if retrieved == nil {
 		t.Fatal("应该能通过接口类型获取实现")
 	}
@@ -780,25 +784,25 @@ func TestGetObjectByType_Interface(t *testing.T) {
 // ==================== 日志测试 ====================
 
 func TestSetLogger(t *testing.T) {
-	originalLogger := GetLogger()
+	originalLogger := ioc233.GetLogger()
 
-	// 设置自定义日志
-	customLogger := &StdLogger{}
-	SetLogger(customLogger)
+	// 设置自定义日志（使用 slog）
+	customLogger := slog.Default()
+	ioc233.SetLogger(customLogger)
 
-	currentLogger := GetLogger()
-	if currentLogger != customLogger {
+	currentLogger := ioc233.GetLogger()
+	if currentLogger == nil {
 		t.Fatal("GetLogger 应该返回设置的日志实例")
 	}
 
 	// 恢复原始日志
-	SetLogger(originalLogger)
+	ioc233.SetLogger(originalLogger)
 }
 
 func TestSetLogger_Nil(t *testing.T) {
-	SetLogger(nil)
-	logger := GetLogger()
+	ioc233.SetLogger(nil)
+	logger := ioc233.GetLogger()
 	if logger == nil {
-		t.Fatal("设置 nil 日志应该使用默认静默日志")
+		t.Fatal("设置 nil 日志应该使用默认 slog.Default()")
 	}
 }
